@@ -3,25 +3,10 @@ import traceback
 class DocumentPortalException(Exception):
     def __init__(self, error_message, error_details):
         _, _, exc_tb = error_details.exc_info()
-        
-        # Handle case when exc_tb is None (no active exception)
-        if exc_tb is not None:
-            self.file_name = exc_tb.tb_frame.f_code.co_filename
-            self.lineno = exc_tb.tb_lineno
-            self.traceback_str = ''.join(traceback.format_exception(*error_details.exc_info()))
-        else:
-            # Fallback when no active exception traceback
-            import inspect
-            frame = inspect.currentframe()
-            if frame and frame.f_back:
-                self.file_name = frame.f_back.f_code.co_filename
-                self.lineno = frame.f_back.f_lineno
-            else:
-                self.file_name = "unknown"
-                self.lineno = 0
-            self.traceback_str = f"No traceback available. Error: {error_message}"
-        
+        self.file_name = exc_tb.tb_frame.f_code.co_filename
+        self.lineno = exc_tb.tb_lineno
         self.error_message = str(error_message)
+        self.traceback_str = ''.join(traceback.format_exception(*error_details.exc_info()))
 
     def __str__(self):
         return f"""
