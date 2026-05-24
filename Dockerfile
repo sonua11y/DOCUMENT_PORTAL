@@ -24,7 +24,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 EXPOSE 8080
 
 # Run FastAPI with uvicorn
-#CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
-
-# Replace last CMD in prod
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "4"]
+# Use the platform port when available and keep a single worker to stay within small container memory limits.
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"]
