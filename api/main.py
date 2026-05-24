@@ -75,10 +75,11 @@ async def compare_documents(reference: UploadFile = File(...), actual: UploadFil
         ref_path, act_path = dc.save_uploaded_files(
             FastAPIFileAdapter(reference), FastAPIFileAdapter(actual)
         )
-        _ = ref_path, act_path
         combined_text = dc.combine_documents()
         comp = DocumentComparatorLLM()
-        df = comp.compare_documents(combined_text)
+        reference_text = dc.read_pdf(ref_path)
+        actual_text = dc.read_pdf(act_path)
+        df = comp.compare_documents(combined_text, reference_text=reference_text, actual_text=actual_text)
         log.info("Document comparison completed.")
         return {"rows": df.to_dict(orient="records"), "session_id": dc.session_id}
     except HTTPException:
