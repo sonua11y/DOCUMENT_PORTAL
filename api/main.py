@@ -17,12 +17,22 @@ from src.document_compare.document_comparator import DocumentComparatorLLM
 from src.document_chat.retrieval import ConversationalRAG
 from utils.document_ops import FastAPIFileAdapter,read_pdf_via_handler
 from logger import GLOBAL_LOGGER as log
+from exception.custom_exception import DocumentPortalException
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
 UPLOAD_BASE = os.getenv("UPLOAD_BASE", "data")
 FAISS_INDEX_NAME = os.getenv("FAISS_INDEX_NAME", "index")  # <--- keep consistent with save_local()
 
 app = FastAPI(title="Document Portal API", version="0.1")
+
+def _root_cause_message(error: Exception) -> str:
+    cause = error
+    while cause.__cause__ is not None:
+        cause = cause.__cause__
+    if isinstance(cause, DocumentPortalException):
+        return cause.error_message
+    return str(cause)
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -120,7 +130,7 @@ async def chat_build_index(
         raise
     except Exception as e:
         log.exception("Chat index building failed")
-        raise HTTPException(status_code=500, detail=f"Indexing failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {_root_cause_message(e)}") from e
 
 # ---------- CHAT: QUERY ----------
 @app.post("/chat/query")
@@ -154,7 +164,7 @@ async def chat_query(
         raise
     except Exception as e:
         log.exception("Chat query failed")
-        raise HTTPException(status_code=500, detail=f"Query failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query failed: {_root_cause_message(e)}") from e
 
 # command for executing the fast api
 # uvicorn api.main:app --port 8080 --reload    

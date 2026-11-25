@@ -50,7 +50,7 @@
     <section id="tab-compare" class="tab-panel">
       <div class="card">
         <h2>🆚 Compare Two Documents</h2>
-        <p class="muted">Upload a reference PDF and an actual PDF to see page-wise differences.</p>
+        <p class="muted">Compare extracted text by page. Each row shows whether that page was changed, added, removed, or unchanged.</p>
         <form id="form-compare" class="form-grid-2" onsubmit="return false;">
           <div class="field">
             <label for="cmp-ref">Reference PDF</label>
@@ -70,13 +70,14 @@
           <div class="table-wrap">
             <table id="cmp-table">
               <thead>
-                <tr><th>Page</th><th>Changes</th></tr>
+                <tr><th>Reference page</th><th>Actual page</th><th>Status</th><th>Text changes</th></tr>
               </thead>
               <tbody>
-                <tr><td colspan="2" class="muted center">No data yet.</td></tr>
+                <tr><td colspan="4" class="muted center">No data yet.</td></tr>
               </tbody>
             </table>
           </div>
+          <p id="cmp-summary" class="muted small" aria-live="polite"></p>
         </div>
       </div>
     </section>
@@ -87,7 +88,7 @@
         <h2>💬 Chat with your Documents</h2>
         <p class="muted">Upload PDF/DOCX/TXT; we’ll index to FAISS and enable RAG chat.</p>
 
-        <form id="form-chat-index" class="form-grid" onsubmit="return false;">
+        <form id="form-chat-index" class="form-grid">
           <div class="field">
             <label for="chat-files">Upload files</label>
             <input id="chat-files" type="file" multiple accept=".pdf,.docx,.txt" />
@@ -130,7 +131,7 @@
 
         <div class="divider"></div>
 
-        <form id="form-chat-ask" class="form-grid" onsubmit="return false;">
+        <form id="form-chat-ask" class="form-grid">
           <div class="field">
             <label for="chat-q">Your Question</label>
             <input id="chat-q" type="text" placeholder="Ask a question about your documents…" />
@@ -152,7 +153,7 @@
 
   <footer class="app-footer">
     <div>© Document Portal • Demo UI</div>
-    <div class="tiny">Frontend only – hook to your FastAPI later.</div>
+    <div class="tiny">Document tools powered by the API.</div>
   </footer>
 
   <script>
@@ -195,18 +196,31 @@
   });
 
   // ===== COMPARE =====
+  const showCompareMessage = message => {
+    const tbody = document.querySelector("#cmp-table tbody");
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 4;
+    cell.className = "muted center";
+    cell.textContent = message;
+    row.appendChild(cell);
+    tbody.replaceChildren(row);
+  };
+
   document.getElementById("btn-compare").addEventListener("click", async () => {
     const ref   = document.getElementById("cmp-ref").files[0];
     const act   = document.getElementById("cmp-act").files[0];
-    const tbody = document.querySelector("#cmp-table tbody");
+    const summary = document.getElementById("cmp-summary");
 
     if (!ref || !act) {
-      tbody.innerHTML = `<tr><td colspan="2" class="muted center">Upload both PDFs.</td></tr>`;
+      showCompareMessage("Upload both PDFs.");
+      summary.textContent = "";
       return;
     }
 
     try {
-      tbody.innerHTML = `<tr><td colspan="2" class="center">Comparing…</td></tr>`;
+      showCompareMessage("Comparing...");
+      summary.textContent = "";
 
       const fd = new FormData();
       fd.append("reference", ref); // <-- must be 'reference'
@@ -220,23 +234,48 @@
       const json = await res.json(); // { rows: [...] }
       const rows = json.rows || [];
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="2" class="muted center">No differences found.</td></tr>`;
+        showCompareMessage("No page text could be compared.");
         return;
       }
-      tbody.innerHTML = rows.map(r => {
-        const page = r.Page ?? r.page ?? "";
-        const chg  = r.Changes ?? r.changes ?? "";
-        return `<tr><td>${page}</td><td>${chg}</td></tr>`;
-      }).join("");
+      const tbody = document.querySelector("#cmp-table tbody");
+      tbody.replaceChildren(...rows.map(row => {
+        const tr = document.createElement("tr");
+        const values = [
+          row["Reference Page"] ?? "-",
+          row["Actual Page"] ?? "-",
+          row.Status ?? "Unknown",
+          row.Changes ?? ""
+        ];
+        values.forEach((value, index) => {
+          const td = document.createElement("td");
+          td.textContent = String(value);
+          if (index === 2) td.className = `status status-${String(value).toLowerCase()}`;
+          tr.appendChild(td);
+        });
+        return tr;
+      }));
+      const counts = rows.reduce((result, row) => {
+        const status = row.Status || "Unknown";
+        result[status] = (result[status] || 0) + 1;
+        return result;
+      }, {});
+      summary.textContent = [
+        `${counts.Modified || 0} modified`,
+        `${counts.Added || 0} added`,
+        `${counts.Removed || 0} removed`,
+        `${counts.Unchanged || 0} unchanged`
+      ].join(" · ");
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="2" class="muted center">Error: ${e.message || e}</td></tr>`;
+      showCompareMessage("Error: " + (e.message || e));
+      summary.textContent = "";
     }
   });
 
   // ===== CHAT (index + ask) =====
   let currentSession = null;
 
-  document.getElementById("btn-build").addEventListener("click", async () => {
+  document.getElementById("form-chat-index").addEventListener("submit", async event => {
+    event.preventDefault();
     const files     = document.getElementById("chat-files").files;
     const sessionId = document.getElementById("chat-session").value.trim();
     const useSess   = document.getElementById("chat-sessionized").checked;
@@ -265,21 +304,24 @@
       }
       const json = await res.json(); // { session_id, k, use_session_dirs }
       currentSession = json.session_id || sessionId || null;
+      if (currentSession) document.getElementById("chat-session").value = currentSession;
       meta.textContent = `Indexed. session=${currentSession || "(none)"}, k=${json.k}`;
     } catch (e) {
       meta.textContent = "Indexing failed: " + (e.message || e);
     }
   });
 
-  document.getElementById("btn-ask").addEventListener("click", async () => {
+  document.getElementById("form-chat-ask").addEventListener("submit", async event => {
+    event.preventDefault();
     const q        = document.getElementById("chat-q").value.trim();
     const ans      = document.getElementById("chat-answer");
     const useSess  = document.getElementById("chat-sessionized").checked;
     const k        = +document.getElementById("chat-k").value || 5;
+    const sessionId = document.getElementById("chat-session").value.trim() || currentSession;
 
     if (!q) { ans.textContent = "Please enter a question."; return; }
-    if (useSess && !currentSession) {
-      ans.textContent = "Build the index first (session-based mode is ON).";
+    if (useSess && !sessionId) {
+      ans.textContent = "Build an index or enter its session ID first.";
       return;
     }
 
@@ -290,7 +332,7 @@
       fd.append("question", q);
       fd.append("use_session_dirs", useSess ? "true" : "false");
       fd.append("k", String(k));
-      if (useSess && currentSession) fd.append("session_id", currentSession);
+      if (useSess && sessionId) fd.append("session_id", sessionId);
 
       const res = await fetch(`${API_BASE}/chat/query`, { method: "POST", body: fd });
       if (!res.ok) {

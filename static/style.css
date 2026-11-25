@@ -171,6 +171,12 @@ thead th{
 }
 tbody tr{transition:background .15s ease}
 tbody tr:hover td{background:rgba(124,154,255,.05)}
+table td:nth-child(3){font-weight:600; white-space:nowrap}
+table td:last-child{min-width:280px; white-space:pre-line}
+.status-modified{color:#ffd27a}
+.status-added{color:#3dd7b6}
+.status-removed{color:#ff8b8b}
+.status-unchanged{color:var(--muted)}
 
 /* Answer bubble */
 .answer{

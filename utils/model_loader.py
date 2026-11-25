@@ -3,7 +3,6 @@ import sys
 import json
 from dotenv import load_dotenv
 from utils.config_loader import load_config
-from langchain_core.embeddings import FakeEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from logger import GLOBAL_LOGGER as log
@@ -11,7 +10,7 @@ from exception.custom_exception import DocumentPortalException
 
 
 class ApiKeyManager:
-    REQUIRED_KEYS = ["GROQ_API_KEY", "GOOGLE_API_KEY"]
+    SUPPORTED_KEYS = ["GROQ_API_KEY", "GOOGLE_API_KEY"]
 
     def __init__(self):
         self.api_keys = {}
@@ -28,20 +27,14 @@ class ApiKeyManager:
                 log.warning("Failed to parse API_KEYS as JSON", error=str(e))
 
         # Fallback to individual env vars
-        for key in self.REQUIRED_KEYS:
+        for key in self.SUPPORTED_KEYS:
             if not self.api_keys.get(key):
                 env_val = os.getenv(key)
                 if env_val:
                     self.api_keys[key] = env_val
                     log.info(f"Loaded {key} from individual env var")
 
-        # Final check
-        missing = [k for k in self.REQUIRED_KEYS if not self.api_keys.get(k)]
-        if missing:
-            log.error("Missing required API keys", missing_keys=missing)
-            raise DocumentPortalException("Missing API keys", sys)
-
-        log.info("API keys loaded", keys={k: v[:6] + "..." for k, v in self.api_keys.items()})
+        log.info("Available API keys loaded", keys=list(self.api_keys))
 
 
     def get(self, key: str) -> str:
@@ -77,8 +70,11 @@ class ModelLoader:
             return GoogleGenerativeAIEmbeddings(model=model_name,
                                                 google_api_key=self.api_key_mgr.get("GOOGLE_API_KEY")) #type: ignore
         except Exception as e:
-            log.warning("Error loading embedding model; using local fallback embeddings", error=str(e))
-            return FakeEmbeddings(size=768)
+            log.error("Failed to load Google embedding model", error=str(e))
+            raise DocumentPortalException(
+                "Google embeddings unavailable; configure a valid GOOGLE_API_KEY and embedding model",
+                e,
+            ) from e
 
     def load_llm(self, provider_key: str | None = None):
         """

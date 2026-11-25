@@ -47,7 +47,7 @@ class ConversationalRAG:
             log.info("ConversationalRAG initialized", session_id=self.session_id)
         except Exception as e:
             log.error("Failed to initialize ConversationalRAG", error=str(e))
-            raise DocumentPortalException("Initialization error in ConversationalRAG", sys)
+            raise DocumentPortalException("Initialization error in ConversationalRAG", e) from e
 
     # ---------- Public API ----------
 
@@ -93,7 +93,7 @@ class ConversationalRAG:
 
         except Exception as e:
             log.error("Failed to load retriever from FAISS", error=str(e))
-            raise DocumentPortalException("Loading error in ConversationalRAG", sys)
+            raise DocumentPortalException("Loading error in ConversationalRAG", e) from e
 
     def invoke(self, user_input: str, chat_history: Optional[List[BaseMessage]] = None) -> str:
         """Invoke the LCEL pipeline."""
@@ -119,7 +119,7 @@ class ConversationalRAG:
             return answer
         except Exception as e:
             log.error("Failed to invoke ConversationalRAG", error=str(e))
-            raise DocumentPortalException("Invocation error in ConversationalRAG", sys)
+            raise DocumentPortalException("Invocation error in ConversationalRAG", e) from e
 
     # ---------- Internals ----------
 
@@ -132,7 +132,7 @@ class ConversationalRAG:
             return llm
         except Exception as e:
             log.error("Failed to load LLM", error=str(e))
-            raise DocumentPortalException("LLM loading error in ConversationalRAG", sys)
+            raise DocumentPortalException("LLM loading error in ConversationalRAG", e) from e
 
     @staticmethod
     def _format_docs(docs) -> str:
@@ -169,4 +169,4 @@ class ConversationalRAG:
             log.info("LCEL graph built successfully", session_id=self.session_id)
         except Exception as e:
             log.error("Failed to build LCEL chain", error=str(e), session_id=self.session_id)
-            raise DocumentPortalException("Failed to build LCEL chain", sys)
+            raise DocumentPortalException("Failed to build LCEL chain", e) from e

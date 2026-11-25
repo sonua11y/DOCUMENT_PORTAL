@@ -88,8 +88,16 @@ class FaissManager:
         
         if not texts:
             raise DocumentPortalException("No existing FAISS index and no data to create one", sys)
-        self.vs = FAISS.from_texts(texts=texts, embedding=self.emb, metadatas=metadatas or [])
+        document_metadata = metadatas or [{} for _ in texts]
+        self.vs = FAISS.from_texts(texts=texts, embedding=self.emb, metadatas=document_metadata)
         self.vs.save_local(str(self.index_dir))
+        self._meta["rows"].update(
+            {
+                self._fingerprint(text, metadata): True
+                for text, metadata in zip(texts, document_metadata)
+            }
+        )
+        self._save_meta()
         return self.vs
         
         
