@@ -66,4 +66,6 @@ git clone https://github.com/sunnysavita10/document_portal.git
 - [Get your API Key](https://aistudio.google.com/apikey)  
 - [Gemini Documentation](https://ai.google.dev/gemini-api/docs/models)
 
+Document chat uses Google embeddings, so `GOOGLE_API_KEY` is required to build its index. The LLM defaults to Google; `GROQ_API_KEY` is only required when `LLM_PROVIDER=groq`.
+
 
