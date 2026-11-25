@@ -1,0 +1,6 @@
+[build]
+  command = "python scripts/build_netlify.py"
+  publish = "public"
+
+[build.environment]
+  API_BASE_URL = "https://document-portal-nhrm.onrender.com"
