@@ -37,6 +37,7 @@ logs/
 # Build/Dist
 dist/
 build/
+public/
 document_portal.egg-info/
 
 .env
